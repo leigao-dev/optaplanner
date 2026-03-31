@@ -13,7 +13,7 @@
   <groupId>org.optaplanner</groupId>
   <artifactId>optaplanner-parent</artifactId>
   <packaging>pom</packaging>
-  <version>9.44.0.Final</version>
+  <version>1.0.0-SNAPSHOT</version>
 
   <name>OptaPlanner multiproject parent</name>
   <description>
@@ -87,9 +87,9 @@
   </pluginRepositories>
 
   <scm>
-    <connection>scm:git:git@github.com:kiegroup/optaplanner.git</connection>
-    <developerConnection>scm:git:git@github.com:kiegroup/optaplanner.git</developerConnection>
-    <url>https://github.com/kiegroup/optaplanner</url>
+    <connection>scm:git:git@github.com:328027284/optaplanner.git</connection>
+    <developerConnection>scm:git:git@github.com:328027284/optaplanner.git</developerConnection>
+    <url>https://github.com/328027284/optaplanner</url>
   </scm>
   <issueManagement>
     <system>jira</system>
