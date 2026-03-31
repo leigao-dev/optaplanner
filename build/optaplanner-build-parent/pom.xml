@@ -24,7 +24,7 @@
 
     <!-- Normal dependency versions -->
     <version.ch.qos.logback>1.4.6</version.ch.qos.logback>
-    <version.org.apache.logging.log4j>2.20.0</version.org.apache.logging.log4j>
+    <version.org.apache.logging.log4j>2.25.4</version.org.apache.logging.log4j>
     <version.com.thoughtworks.xstream>1.4.20</version.com.thoughtworks.xstream>
     <version.io.quarkiverse.operatorsdk>6.0.3</version.io.quarkiverse.operatorsdk>
     <version.io.quarkus>3.0.0.Final</version.io.quarkus>
