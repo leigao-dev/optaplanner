@@ -382,6 +382,25 @@ public interface ProblemChange<Solution_> {
 }
 ----
 
+[NOTE]
+====
+`ProblemChange` replaces the deprecated `ProblemFactChange` interface.
+The key differences are:
+
+* `ProblemChange.doChange()` receives the working solution directly plus a `ProblemChangeDirector`,
+  which provides high-level methods (`addEntity`, `removeEntity`, `changeVariable`, `addProblemFact`,
+  `removeProblemFact`, `changeProblemProperty`) to safely perform modifications.
+  In contrast, the deprecated `ProblemFactChange.doChange()` received a `ScoreDirector` directly,
+  requiring the caller to manually notify the `ScoreDirector` on every change.
+* With `ProblemChange`, variable listeners are triggered automatically after the change is applied.
+  With `ProblemFactChange`, the caller had to ensure the `ScoreDirector` was notified to invoke them.
+* `ProblemChange` can change both planning entities and problem facts,
+  while `ProblemFactChange` was limited to problem facts by convention.
+
+If you are still using `ProblemFactChange`, migrate to `ProblemChange` by replacing the `ScoreDirector`
+notification calls with the equivalent `ProblemChangeDirector` methods.
+====
+
 [WARNING]
 ====
 The `ScoreDirector` must be updated with any change on the problem facts of planning entities in a `ProblemChange`.
