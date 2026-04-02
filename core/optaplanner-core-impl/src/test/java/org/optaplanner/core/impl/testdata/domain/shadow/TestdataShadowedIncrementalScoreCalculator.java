@@ -28,7 +28,8 @@ public class TestdataShadowedIncrementalScoreCalculator
     public void resetWorkingSolution(TestdataShadowedSolution workingSolution) {
         score = 0;
         constraintMatchTotal =
-                new DefaultConstraintMatchTotal<>("org.optaplanner.core.impl.testdata.domain.shadow", "testConstraint");
+                new DefaultConstraintMatchTotal<>("org.optaplanner.core.impl.testdata.domain.shadow", "testConstraint",
+                        SimpleScore.ONE);
         indictmentMap = new HashMap<>();
         for (TestdataShadowedEntity left : workingSolution.getEntityList()) {
             TestdataValue value = left.getValue();

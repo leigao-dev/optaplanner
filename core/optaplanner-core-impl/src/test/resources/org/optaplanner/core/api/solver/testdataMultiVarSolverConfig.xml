@@ -1,0 +1,7 @@
+<solver>
+  <solutionClass>org.optaplanner.core.impl.testdata.domain.multivar.TestdataMultiVarSolution</solutionClass>
+  <entityClass>org.optaplanner.core.impl.testdata.domain.multivar.TestdataMultiVarEntity</entityClass>
+  <scoreDirectorFactory>
+    <incrementalScoreCalculatorClass>org.optaplanner.core.impl.testdata.domain.multivar.TestdataMultiVarIncrementalScoreCalculator</incrementalScoreCalculatorClass>
+  </scoreDirectorFactory>
+</solver>
