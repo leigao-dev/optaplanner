@@ -9,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.api.score.ScoreExplanation;
+import org.optaplanner.core.api.score.analysis.ScoreAnalysis;
 import org.optaplanner.core.impl.testdata.domain.shadow.TestdataShadowedSolution;
 
 public class SolutionManagerTest {
@@ -88,6 +89,49 @@ public class SolutionManagerTest {
                     .containsOnlyKeys(solution.getEntityList().toArray());
 
         });
+    }
+
+    @ParameterizedTest
+    @EnumSource(SolutionManagerSource.class)
+    void analyzeFetchPolicies(SolutionManagerSource solutionManagerSource) {
+        SolutionManager<TestdataShadowedSolution, ?> solutionManager =
+                solutionManagerSource.createSolutionManager(SOLVER_FACTORY);
+        assertThat(solutionManager).isNotNull();
+        TestdataShadowedSolution solution = TestdataShadowedSolution.generateSolution();
+        ScoreAnalysis<?> fetchAllAnalysis = solutionManager.analyze(solution);
+        ScoreAnalysis<?> fetchCountAnalysis = solutionManager.analyze(solution, ScoreAnalysisFetchPolicy.FETCH_MATCH_COUNT);
+        ScoreAnalysis<?> fetchShallowAnalysis = solutionManager.analyze(solution, ScoreAnalysisFetchPolicy.FETCH_SHALLOW);
+        assertThat(fetchAllAnalysis).isNotNull();
+        assertSoftly(softly -> {
+            softly.assertThat(fetchAllAnalysis.score()).isNotNull();
+            softly.assertThat(fetchAllAnalysis.constraintMap()).isNotEmpty();
+            softly.assertThat(fetchAllAnalysis.isSolutionInitialized()).isTrue();
+            softly.assertThat(fetchCountAnalysis.constraintMap().values())
+                    .allSatisfy(constraintAnalysis -> softly.assertThat(constraintAnalysis.matches()).isNull());
+            softly.assertThat(fetchCountAnalysis.constraintMap().values())
+                    .allSatisfy(
+                            constraintAnalysis -> softly.assertThat(constraintAnalysis.matchCount()).isGreaterThanOrEqualTo(0));
+            softly.assertThat(fetchShallowAnalysis.constraintMap().values())
+                    .allSatisfy(constraintAnalysis -> softly.assertThat(constraintAnalysis.matches()).isNull());
+            softly.assertThat(fetchShallowAnalysis.constraintMap().values())
+                    .allSatisfy(constraintAnalysis -> softly.assertThat(constraintAnalysis.matchCount()).isEqualTo(-1));
+            softly.assertThat(fetchAllAnalysis.getConstraintAnalysis("org.optaplanner.core.impl.testdata.domain.shadow",
+                    "testConstraint"))
+                    .isNotNull();
+        });
+    }
+
+    @ParameterizedTest
+    @EnumSource(SolutionManagerSource.class)
+    void analyzeUninitializedSolution(SolutionManagerSource solutionManagerSource) {
+        SolutionManager<TestdataShadowedSolution, ?> solutionManager =
+                solutionManagerSource.createSolutionManager(SOLVER_FACTORY);
+        TestdataShadowedSolution solution = TestdataShadowedSolution.generateSolution();
+        solution.getEntityList().get(0).setValue(null);
+
+        ScoreAnalysis<?> analysis = solutionManager.analyze(solution);
+
+        assertThat(analysis.isSolutionInitialized()).isFalse();
     }
 
     public enum SolutionManagerSource {

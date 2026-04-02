@@ -1,0 +1,8 @@
+<solver>
+  <solutionClass>org.optaplanner.core.impl.testdata.domain.list.shadow_history.TestdataListSolutionWithShadowHistory</solutionClass>
+  <entityClass>org.optaplanner.core.impl.testdata.domain.list.shadow_history.TestdataListEntityWithShadowHistory</entityClass>
+  <entityClass>org.optaplanner.core.impl.testdata.domain.list.shadow_history.TestdataListValueWithShadowHistory</entityClass>
+  <scoreDirectorFactory>
+    <incrementalScoreCalculatorClass>org.optaplanner.core.impl.testdata.domain.list.shadow_history.TestdataListWithShadowHistoryIncrementalScoreCalculator</incrementalScoreCalculatorClass>
+  </scoreDirectorFactory>
+</solver>

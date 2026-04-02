@@ -10,17 +10,24 @@ import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.core.api.domain.variable.VariableListener;
 import org.optaplanner.core.api.score.Score;
+import org.optaplanner.core.api.score.analysis.ConstraintAnalysis;
+import org.optaplanner.core.api.score.analysis.MatchAnalysis;
+import org.optaplanner.core.api.score.analysis.ScoreAnalysis;
 import org.optaplanner.core.api.score.constraint.ConstraintMatch;
 import org.optaplanner.core.api.score.constraint.ConstraintMatchTotal;
+import org.optaplanner.core.api.score.constraint.ConstraintRef;
 import org.optaplanner.core.api.score.constraint.Indictment;
 import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.api.score.stream.Constraint;
+import org.optaplanner.core.api.score.stream.ConstraintJustification;
+import org.optaplanner.core.api.solver.ScoreAnalysisFetchPolicy;
 import org.optaplanner.core.api.solver.SolutionManager;
 import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.ListVariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
 import org.optaplanner.core.impl.domain.variable.supply.SupplyManager;
 import org.optaplanner.core.impl.heuristic.move.Move;
+import org.optaplanner.core.impl.score.constraint.ConstraintMatchPolicy;
 import org.optaplanner.core.impl.score.definition.ScoreDefinition;
 import org.optaplanner.core.impl.solver.thread.ChildThreadType;
 
@@ -40,16 +47,92 @@ public interface InnerScoreDirector<Solution_, Score_ extends Score<Score_>>
     void setWorkingSolution(Solution_ workingSolution);
 
     /**
+     * Sets the {@link PlanningSolution working solution} of the {@link ScoreDirector}
+     * to the given solution, without triggering variable listeners or updating shadow variables.
+     * <p>
+     * Callers are responsible for subsequently calling {@link #forceTriggerVariableListeners()}
+     * if shadow variable updates are needed.
+     *
+     * @param workingSolution never null, must never be the same instance as the best solution
+     */
+    default void setWorkingSolutionWithoutUpdatingShadows(Solution_ workingSolution) {
+        setWorkingSolution(workingSolution);
+    }
+
+    /**
      * Calculates the {@link Score} and updates the {@link PlanningSolution working solution} accordingly.
      *
      * @return never null, the {@link Score} of the {@link PlanningSolution working solution}
      */
     Score_ calculateScore();
 
+    default ScoreAnalysis<Score_> buildScoreAnalysis(ScoreAnalysisFetchPolicy scoreAnalysisFetchPolicy) {
+        java.util.Objects.requireNonNull(scoreAnalysisFetchPolicy);
+        Score_ score = calculateScore();
+        Map<ConstraintRef, ConstraintAnalysis<Score_>> constraintAnalysisMap = new java.util.TreeMap<>();
+        for (ConstraintMatchTotal<Score_> constraintMatchTotal : getConstraintMatchTotalMap().values()) {
+            ConstraintRef constraintRef = ConstraintRef.of(constraintMatchTotal.getConstraintPackage(),
+                    constraintMatchTotal.getConstraintName());
+            constraintAnalysisMap.put(constraintRef, getConstraintAnalysis(constraintMatchTotal, scoreAnalysisFetchPolicy));
+        }
+        return new ScoreAnalysis<Score_>(score, constraintAnalysisMap, score.initScore() == 0);
+    }
+
+    static <Score_ extends Score<Score_>> ConstraintAnalysis<Score_> getConstraintAnalysis(
+            ConstraintMatchTotal<Score_> constraintMatchTotal, ScoreAnalysisFetchPolicy scoreAnalysisFetchPolicy) {
+        ConstraintRef constraintRef = ConstraintRef.of(constraintMatchTotal.getConstraintPackage(),
+                constraintMatchTotal.getConstraintName());
+        if (scoreAnalysisFetchPolicy == ScoreAnalysisFetchPolicy.FETCH_ALL) {
+            java.util.Map<ConstraintJustification, java.util.List<ConstraintMatch<Score_>>> groupedConstraintMatchMap =
+                    new java.util.LinkedHashMap<>();
+            for (ConstraintMatch<Score_> constraintMatch : constraintMatchTotal.getConstraintMatchSet()) {
+                ConstraintJustification justification = constraintMatch.getJustification();
+                java.util.List<ConstraintMatch<Score_>> constraintMatchList = groupedConstraintMatchMap.computeIfAbsent(
+                        justification, k -> new java.util.ArrayList<>());
+                constraintMatchList.add(constraintMatch);
+            }
+            java.util.List<MatchAnalysis<Score_>> matchAnalyses = sumMatchesWithSameJustification(constraintMatchTotal,
+                    groupedConstraintMatchMap);
+            return new ConstraintAnalysis<Score_>(constraintRef, constraintMatchTotal.getConstraintWeight(),
+                    constraintMatchTotal.getScore(), matchAnalyses);
+        } else if (scoreAnalysisFetchPolicy == ScoreAnalysisFetchPolicy.FETCH_MATCH_COUNT) {
+            return new ConstraintAnalysis<Score_>(constraintRef, constraintMatchTotal.getConstraintWeight(),
+                    constraintMatchTotal.getScore(), null, constraintMatchTotal.getConstraintMatchCount());
+        } else {
+            return new ConstraintAnalysis<Score_>(constraintRef, constraintMatchTotal.getConstraintWeight(),
+                    constraintMatchTotal.getScore(), null);
+        }
+    }
+
+    static <Score_ extends Score<Score_>> java.util.List<MatchAnalysis<Score_>> sumMatchesWithSameJustification(
+            ConstraintMatchTotal<Score_> constraintMatchTotal,
+            java.util.Map<ConstraintJustification, java.util.List<ConstraintMatch<Score_>>> groupedConstraintMatchMap) {
+        return groupedConstraintMatchMap.entrySet().stream().map(entry -> {
+            Score_ score =
+                    entry.getValue().stream().map(ConstraintMatch::getScore).reduce(constraintMatchTotal.getScore().zero(),
+                            Score::add);
+            return new MatchAnalysis<>(ConstraintRef.of(constraintMatchTotal.getConstraintPackage(),
+                    constraintMatchTotal.getConstraintName()), score, entry.getKey());
+        }).collect(java.util.stream.Collectors.toList());
+    }
+
     /**
      * @return true if {@link #getConstraintMatchTotalMap()} and {@link #getIndictmentMap} can be called
      */
     boolean isConstraintMatchEnabled();
+
+    /**
+     * Returns the {@link ConstraintMatchPolicy} that determines the level of constraint match tracking.
+     * <p>
+     * The default implementation bridges from {@link #isConstraintMatchEnabled()} for backward compatibility.
+     * Implementations may override this to provide finer-grained control
+     * (e.g., {@link ConstraintMatchPolicy#ENABLED_WITHOUT_JUSTIFICATIONS}).
+     *
+     * @return never null
+     */
+    default ConstraintMatchPolicy getConstraintMatchPolicy() {
+        return isConstraintMatchEnabled() ? ConstraintMatchPolicy.ENABLED : ConstraintMatchPolicy.DISABLED;
+    }
 
     /**
      * Explains the {@link Score} of {@link #calculateScore()} by splitting it up per {@link Constraint}.
