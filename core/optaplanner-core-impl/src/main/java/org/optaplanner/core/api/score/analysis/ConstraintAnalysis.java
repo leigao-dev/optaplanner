@@ -96,7 +96,9 @@ public record ConstraintAnalysis<Score_ extends Score<Score_>>(ConstraintRef con
             ConstraintAnalysis<S> left,
             ConstraintAnalysis<S> right) {
         if (left == null && right == null) {
-            return null;
+            throw new IllegalStateException(
+                    "Impossible state: none of the score explanations provided constraint matches for a constraint (%s)."
+                            .formatted(ref));
         }
         if (left == null) {
             return right.negate();
